@@ -23,17 +23,23 @@ namespace E2442_UnboundDataFromDetail
 			InitializeComponent();
 		}
 
-		private void Form1_Load(object sender, EventArgs e)
+        DataSet dataSet1 = new DataSet();
+        private void Form1_Load(object sender, EventArgs e)
 		{
 			grid = new GridControl();
 			grid.Parent = this;
 			grid.Dock = DockStyle.Fill;
 			grid.ForceInitialize();
 
-			categoriesTableAdapter.Fill(nwindDataSet.Categories);
-			productsTableAdapter.Fill(nwindDataSet.Products);
+            var categories = DataHelper.CreateCategoriesTable();
+            categories.TableName = "Categories";
+            dataSet1.Tables.Add(categories);
+            dataSet1.Tables.Add(DataHelper.CreateProductsTable());
+            DataColumn keyColumn = dataSet1.Tables[0].Columns["CategoryID"];
+            DataColumn foreignKeyColumn = dataSet1.Tables[1].Columns["CategoryID"];
+            dataSet1.Relations.Add("CategoriesProducts", keyColumn, foreignKeyColumn);
 
-			grid.MainView.Dispose();
+            grid.MainView.Dispose();
 
 			catView = new GridView(grid);
 			prodView = new GridView(grid);
@@ -41,9 +47,7 @@ namespace E2442_UnboundDataFromDetail
 			grid.MainView = catView;
 			grid.LevelTree.Nodes.Add("CategoriesProducts", prodView);
 
-			grid.DataSource = nWindBindingSource;
-			grid.DataMember = "Categories";
-
+            grid.DataSource = dataSet1.Tables[0];
 			catView.CustomUnboundColumnData += new CustomColumnDataEventHandler(OnUnboundColumnData);
 
 			int colIndex = catView.Columns.Add(new GridColumn());
@@ -53,12 +57,12 @@ namespace E2442_UnboundDataFromDetail
 			catView.Columns[colIndex].Visible = true;
 		}
 
-		private void OnUnboundColumnData(object sender, CustomColumnDataEventArgs e)
+        private void OnUnboundColumnData(object sender, CustomColumnDataEventArgs e)
 		{
 			if ( !e.IsGetData )
 				return;
 
-			PropertyDescriptorCollection pdc = ((ITypedList)nwindDataSet.Products.DefaultView).GetItemProperties(null);
+			PropertyDescriptorCollection pdc = ((ITypedList)dataSet1.Tables[1].DefaultView).GetItemProperties(null);
 			ExpressionEvaluator evaluator = new ExpressionEvaluator(pdc, prodView.ActiveFilterCriteria);
 
 			int controllerRow = catView.DataController.GetControllerRow(e.ListSourceRowIndex);

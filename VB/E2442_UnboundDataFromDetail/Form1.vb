@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Collections
 Imports System.ComponentModel
 Imports System.Data
@@ -13,6 +13,7 @@ Imports DevExpress.XtraGrid.Views.Grid
 Namespace E2442_UnboundDataFromDetail
 	Partial Public Class Form1
 		Inherits Form
+
 		Private grid As GridControl = Nothing
 		Private catView As GridView = Nothing
 		Private prodView As GridView = Nothing
@@ -21,14 +22,20 @@ Namespace E2442_UnboundDataFromDetail
 			InitializeComponent()
 		End Sub
 
-		Private Sub Form1_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load
+		Private dataSet1 As New DataSet()
+		Private Sub Form1_Load(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Load
 			grid = New GridControl()
 			grid.Parent = Me
 			grid.Dock = DockStyle.Fill
 			grid.ForceInitialize()
 
-			categoriesTableAdapter.Fill(nwindDataSet.Categories)
-			productsTableAdapter.Fill(nwindDataSet.Products)
+			Dim categories = DataHelper.CreateCategoriesTable()
+			categories.TableName = "Categories"
+			dataSet1.Tables.Add(categories)
+			dataSet1.Tables.Add(DataHelper.CreateProductsTable())
+			Dim keyColumn As DataColumn = dataSet1.Tables(0).Columns("CategoryID")
+			Dim foreignKeyColumn As DataColumn = dataSet1.Tables(1).Columns("CategoryID")
+			dataSet1.Relations.Add("CategoriesProducts", keyColumn, foreignKeyColumn)
 
 			grid.MainView.Dispose()
 
@@ -38,9 +45,7 @@ Namespace E2442_UnboundDataFromDetail
 			grid.MainView = catView
 			grid.LevelTree.Nodes.Add("CategoriesProducts", prodView)
 
-			grid.DataSource = nWindBindingSource
-			grid.DataMember = "Categories"
-
+			grid.DataSource = dataSet1.Tables(0)
 			AddHandler catView.CustomUnboundColumnData, AddressOf OnUnboundColumnData
 
 			Dim colIndex As Integer = catView.Columns.Add(New GridColumn())
@@ -51,15 +56,15 @@ Namespace E2442_UnboundDataFromDetail
 		End Sub
 
 		Private Sub OnUnboundColumnData(ByVal sender As Object, ByVal e As CustomColumnDataEventArgs)
-			If (Not e.IsGetData) Then
+			If Not e.IsGetData Then
 				Return
 			End If
 
-			Dim pdc As PropertyDescriptorCollection = (CType(nwindDataSet.Products.DefaultView, ITypedList)).GetItemProperties(Nothing)
+			Dim pdc As PropertyDescriptorCollection = DirectCast(dataSet1.Tables(1).DefaultView, ITypedList).GetItemProperties(Nothing)
 			Dim evaluator As New ExpressionEvaluator(pdc, prodView.ActiveFilterCriteria)
 
 			Dim controllerRow As Integer = catView.DataController.GetControllerRow(e.ListSourceRowIndex)
-			If (Not catView.DataController.IsValidControllerRowHandle(controllerRow)) Then
+			If Not catView.DataController.IsValidControllerRowHandle(controllerRow) Then
 				Return
 			End If
 
@@ -70,8 +75,8 @@ Namespace E2442_UnboundDataFromDetail
 
 			Dim sum As Decimal = 0
 			For i As Integer = 0 To detailList.Count - 1
-				If evaluator.Fit(CType(detailList(i), DataRowView)) Then
-					sum += Convert.ToDecimal((CType(detailList(i), DataRowView))("UnitPrice"))
+				If evaluator.Fit(DirectCast(detailList(i), DataRowView)) Then
+					sum += Convert.ToDecimal(DirectCast(detailList(i), DataRowView)("UnitPrice"))
 				End If
 			Next i
 
